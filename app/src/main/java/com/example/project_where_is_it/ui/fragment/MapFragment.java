@@ -37,15 +37,21 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        viewModel = new ViewModelProvider(requireActivity()).get(LocalizationViewModel.class);
+
         mapView = view.findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
-        mapView.getMapAsync(this);
-        viewModel = new ViewModelProvider(requireActivity()).get(LocalizationViewModel.class);
-    }
+        mapView.getMapAsync(this);  }
 
     @Override
     public void onMapReady(GoogleMap map) {
         this.googleMap = map;
+        if (viewModel == null) {
+            Log.e("MapFragment", "viewModel está null!");
+            return;
+        }
         Address address = viewModel.getEnderecoSelecionado().getValue();
 
         if (address != null) {
@@ -56,7 +62,13 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                     googleMap.addMarker(new MarkerOptions().position(location).title(address.getLogradouro()));
                     googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 15));
                 }
+                else {
+                    Log.e("MapFragment", "Coordenadas retornaram null");
+                }
             });
+        }
+        else {
+            Log.e("MapFragment", "Endereço selecionado está null");
         }
     }
 

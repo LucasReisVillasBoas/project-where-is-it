@@ -36,8 +36,8 @@ public class LocalizationRepository {
         return ibgeService.listarMunicipios(uf);
     }
 
-    public Call<Localization> geocodeAddress(String fullAddress) {
-        String encodedAddress = Uri.encode(fullAddress);
-        return geocodingService.geocodificarEndereco(encodedAddress, "AIzaSyAKJyuYX2NZQELZRMvRMHD6-TY3sj2qr5k");
+    public Call<List<LocationIQResponse>> geocodeAddress(String fullAddress) {
+        return geocodingService.geocodeAddress("pk.9d9fef656ba32e58481a803d13c52cd1", fullAddress, "json");
     }
+
 }

@@ -11,6 +11,7 @@ import com.example.project_where_is_it.data.api.IbgeService;
 import com.example.project_where_is_it.data.api.ViaCepService;
 import com.example.project_where_is_it.data.model.Coordinates;
 import com.example.project_where_is_it.data.model.Localization;
+import com.example.project_where_is_it.data.model.LocationIQResponse;
 import com.example.project_where_is_it.data.model.State;
 import com.example.project_where_is_it.data.model.Address;
 import com.example.project_where_is_it.data.model.City;
@@ -33,7 +34,7 @@ public class LocalizationViewModel extends ViewModel {
         ViaCepService viaCepService = new Retrofit.Builder().baseUrl("https://viacep.com.br/ws/").addConverterFactory(GsonConverterFactory.create()).build().create(ViaCepService.class);
 
         IbgeService ibgeService = new Retrofit.Builder().baseUrl("https://servicodados.ibge.gov.br/api/v1/localidades/").addConverterFactory(GsonConverterFactory.create()).build().create(IbgeService.class);
-        GeocodingService geocodingService = new Retrofit.Builder().baseUrl("https://maps.googleapis.com/maps/api/geocode/").addConverterFactory(GsonConverterFactory.create()).build().create(GeocodingService.class);
+        GeocodingService geocodingService = new Retrofit.Builder().baseUrl("https://us1.locationiq.com/v1/").addConverterFactory(GsonConverterFactory.create()).build().create(GeocodingService.class);
 
         repository = new LocalizationRepository(viaCepService, ibgeService, geocodingService);
 
@@ -104,6 +105,7 @@ public class LocalizationViewModel extends ViewModel {
 
             @Override
             public void onFailure(Call<List<City>> call, Throwable t) {
+                Log.e("ViewModel", "Erro ao buscar Municipios: " + t.getMessage());
             }
         });
     }
@@ -119,30 +121,42 @@ public class LocalizationViewModel extends ViewModel {
 
             @Override
             public void onFailure(Call<List<Address>> call, Throwable t) {
+                Log.e("ViewModel", "Erro ao buscar endereços: " + t.getMessage());
             }
         });
     }
 
     public void getCoordinatesForAddress(Address address, CoordinatesCallback callback) {
+        Log.d("ViewModel", "Logradouro: " + address.getLogradouro());
+        Log.d("ViewModel", "Localidade: " + address.getLocalidade());
+        Log.d("ViewModel", "UF: " + address.getUf());
+
+        if (address.getLogradouro() == null || address.getLocalidade() == null || address.getUf() == null) {
+            Log.e("ViewModel", "Endereço incompleto. Falha ao buscar coordenadas.");
+            callback.onCoordinatesReceived(null);
+            return;
+        }
+
         String fullAddress = address.getLogradouro() + ", " + address.getLocalidade() + ", " + address.getUf();
-
-        repository.geocodeAddress(fullAddress).enqueue(new Callback<Localization>() {
+        repository.geocodeAddress(fullAddress).enqueue(new Callback<List<LocationIQResponse>>() {
             @Override
-            public void onResponse(Call<Localization> call, Response<Localization> response) {
+            public void onResponse(Call<List<LocationIQResponse>> call, Response<List<LocationIQResponse>> response) {
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    LocationIQResponse result = response.body().get(0);
+                    double lat = result.getLatitude();
+                    double lon = result.getLongitude();
 
-                if (response.isSuccessful() && response.body() != null && !response.body().getResults().isEmpty()) {
+                    Log.d("Latitude", "Valor da latitude: " + lat);
+                    Log.d("Longitude", "Valor da longitude: " + lon);
 
-                    double lat = response.body().getResults().get(0).geometry.location.lat;
-                    double lng = response.body().getResults().get(0).geometry.location.lng;
-
-                    callback.onCoordinatesReceived(new Coordinates(lat, lng));
+                    callback.onCoordinatesReceived(new Coordinates(lat, lon));
                 } else {
                     callback.onCoordinatesReceived(null);
                 }
             }
 
             @Override
-            public void onFailure(Call<Localization> call, Throwable t) {
+            public void onFailure(Call<List<LocationIQResponse>> call, Throwable t) {
                 callback.onCoordinatesReceived(null);
             }
         });
